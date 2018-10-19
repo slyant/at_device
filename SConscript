@@ -2,6 +2,9 @@ from building import *
 
 cwd = GetCurrentDir()
 
+if GetDepend(['AT_DEVICE_Air800']):
+    src = Glob('at_socket_air800.c')
+    
 if GetDepend(['AT_DEVICE_M26']):
     src = Glob('at_socket_m26.c')
 
