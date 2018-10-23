@@ -35,16 +35,13 @@
 #error "This AT Client version is older, please check and update latest AT Client!"
 #endif
 
-#define LOG_TAG              "at.air800|mc20"
+#define LOG_TAG              "at.air800"
 #include <at_log.h>
 
 #ifdef AT_DEVICE_AIR800
 
-#define PWD_PIN		(27)
-#define RST_PIN		(26)
-
 #define AIR800_MODULE_SEND_MAX_SIZE       1460
-#define AIR800_WAIT_CONNECT_TIME          5000
+#define AIR800_WAIT_CONNECT_TIME          2000
 #define AIR800_THREAD_STACK_SIZE          1024
 #define AIR800_THREAD_PRIORITY            (RT_THREAD_PRIORITY_MAX/2)
 
@@ -66,6 +63,36 @@ static at_evt_cb_t at_evt_cb_set[] = {
         [AT_SOCKET_EVT_RECV] = NULL,
         [AT_SOCKET_EVT_CLOSED] = NULL,
 };
+
+typedef enum{
+	TA_UNCONNECTED,				//终端适配器TA未连接
+	TA_CONNECTED,				//终端适配器TA已连接
+	MT_SEARCHING,				//正在搜索网络
+	MT_UNREGISTERED,			//移动终端MT网络未注册
+	MT_REGISTERED,				//移动终端MT网络注册成功
+	MT_REGISTER_DENY,			//移动终端MT网络注册被拒绝
+	MT_CONN_SUCCESS				//移动终端MT网络连接成功
+}te_status_t;
+
+static te_status_t network_sta = TA_UNCONNECTED;
+static int air800_net_init(void);
+static void air800_init_thread_entry(void *parameter);
+
+#define PWD_PIN		(27)
+#define RST_PIN		(26)
+
+#define MODULE_PIN_INIT() do{\
+	rt_pin_mode(PWD_PIN,PIN_MODE_OUTPUT);\
+	rt_pin_mode(RST_PIN,PIN_MODE_OUTPUT);\
+	rt_pin_write(RST_PIN,0);\
+	rt_pin_write(PWD_PIN,0);\
+	}while(0);\
+
+#define MODULE_POWER() do{\
+	rt_pin_write(PWD_PIN,1);\
+	rt_thread_delay(rt_tick_from_millisecond(2000));\
+	rt_pin_write(PWD_PIN,0);\
+	}while(0);\
 
 static int at_socket_event_send(uint32_t event)
 {
@@ -155,8 +182,8 @@ __retry:
         switch (type)
         {
         case AT_SOCKET_TCP:
-            /* send AT commands(eg: AT+CIPSTART="TCP","x.x.x.x", 1234) to connect TCP server */
-            if (at_exec_cmd(RT_NULL, "AT+CIPSTART=\"TCP\",\"%s\",%d", ip, port) < 0)
+            /* send AT commands(eg: AT+CIPSTART=0,"TCP","x.x.x.x", 1234) to connect TCP server */
+            if (at_exec_cmd(RT_NULL, "AT+CIPSTART=%d,\"TCP\",\"%s\",%d", socket, ip, port) < 0)
             {
                 result = -RT_ERROR;
                 goto __exit;
@@ -164,7 +191,7 @@ __retry:
             break;
 
         case AT_SOCKET_UDP:
-            if (at_exec_cmd(RT_NULL, "AT+CIPSTART=\"UDP\",\"%s\",%d", ip, port) < 0)
+            if (at_exec_cmd(RT_NULL, "AT+CIPSTART=%d,\"UDP\",\"%s\",%d", socket, ip, port) < 0)
             {
                 result = -RT_ERROR;
                 goto __exit;
@@ -229,7 +256,7 @@ static int at_get_send_size(int socket, size_t *size, size_t *acked, size_t *nac
         goto __exit;
     }
 
-    if (at_exec_cmd(resp, "AT+CIPACK") < 0)
+    if (at_exec_cmd(resp, "AT+CIPACK=%d", socket) < 0)
     {
         result = -RT_ERROR;
         goto __exit;
@@ -317,7 +344,7 @@ static int air800_socket_send(int socket, const char *buff, size_t bfsz, enum at
         }
 
         /* send the "AT+CIPSEND" commands to AT server than receive the '>' response on the first line. */
-        if (at_exec_cmd(resp, "AT+CIPSEND=%d", cur_pkt_size) < 0)
+        if (at_exec_cmd(resp, "AT+CIPSEND=%d,%d", socket, cur_pkt_size) < 0)
         {
             result = -RT_ERROR;
             goto __exit;
@@ -330,7 +357,6 @@ static int air800_socket_send(int socket, const char *buff, size_t bfsz, enum at
             result = -RT_ERROR;
             goto __exit;
         }
-
         /* waiting result event from AT URC */
         if (at_socket_event_recv(SET_EVENT(socket, 0), rt_tick_from_millisecond(300*3), RT_EVENT_FLAG_OR) < 0)
         {
@@ -389,9 +415,9 @@ __exit:
  */
 static int air800_domain_resolve(const char *name, char ip[16])
 {
-#define RESOLVE_RETRY                  5
+#define RESOLVE_RETRY                  3
 
-    int i, result = RT_EOK;
+    int i, r, result = RT_EOK;
     char recv_ip[16] = { 0 };
     at_response_t resp = RT_NULL;
 
@@ -410,34 +436,42 @@ static int air800_domain_resolve(const char *name, char ip[16])
 
     for(i = 0; i < RESOLVE_RETRY; i++)
     {
-        if (at_exec_cmd(resp, "AT+QIDNSGIP=\"%s\"", name) < 0)
+        if (at_exec_cmd(resp, "AT+CDNSGIP=\"%s\"", name) < 0)
         {
             result = -RT_ERROR;
             goto __exit;
         }
-
+		
+		if(at_resp_parse_line_args_by_kw(resp, "+CDNSGIP", "+CDNSGIP: %d", &r)<0)
+		{
+			result = -RT_ERROR;
+            goto __exit;
+		}
         /* parse the third line of response data, get the IP address */
-        if(at_resp_parse_line_args_by_kw(resp, ".", "%s", recv_ip) < 0)
+        if(r==0 || at_resp_parse_line_args_by_kw(resp, "+CDNSGIP", "%*[^\"]\"%[^\"]\",\"%[^\"]", RT_NULL, recv_ip) < 0)
         {
             rt_thread_delay(rt_tick_from_millisecond(100));
             /* resolve failed, maybe receive an URC CRLF */
+			result = -RT_ERROR;
             continue;
         }
 
-        if (strlen(recv_ip) < 8)
+        if (strlen(recv_ip) < 7)
         {
             rt_thread_delay(rt_tick_from_millisecond(100));
             /* resolve failed, maybe receive an URC CRLF */
+			result = -RT_ERROR;
             continue;
         }
         else
         {
             strncpy(ip, recv_ip, 15);
             ip[15] = '\0';
+			result = RT_EOK;
             break;
         }
     }
-
+	
 __exit:
     rt_mutex_release(at_event_lock);
 
@@ -472,7 +506,6 @@ static void urc_connect_func(const char *data, rt_size_t size)
     RT_ASSERT(data && size);
 
     sscanf(data, "%d%*[^0-9]", &socket);
-
     if (strstr(data, "CONNECT OK"))
     {
         at_socket_event_send(SET_EVENT(socket, AIR800_EVENT_CONN_OK));
@@ -487,7 +520,7 @@ static void urc_send_func(const char *data, rt_size_t size)
 {
     RT_ASSERT(data && size);
 
-    if (strstr(data, "SEND OK"))
+    if (strstr(data, "DATA ACCEPT"))
     {
         at_socket_event_send(SET_EVENT(cur_socket, AIR800_EVENT_SEND_OK));
     }
@@ -528,7 +561,7 @@ static void urc_recv_func(const char *data, rt_size_t size)
     RT_ASSERT(data && size);
 
     /* get the current socket and receive buffer size by receive data */
-    sscanf(data, "+RECEIVE: %d, %d", &socket, (int *) &bfsz);
+    sscanf(data, "+RECEIVE,%d,%d:", &socket, (int *) &bfsz);
     /* get receive timeout by receive buffer length */
     timeout = bfsz;
 
@@ -569,28 +602,48 @@ static void urc_recv_func(const char *data, rt_size_t size)
         at_evt_cb_set[AT_SOCKET_EVT_RECV](socket, AT_SOCKET_EVT_RECV, recv_buf, bfsz);
     }
 }
-
+static void urc_stat_func(const char *data, rt_size_t size)
+{
+	if(network_sta==MT_CONN_SUCCESS)
+	{
+		int sta = 0;
+		RT_ASSERT(data && size);
+		if(sscanf(data, "+CGREG: %d", &sta)==1)
+		{
+			if(sta!=1 && sta!=5)
+			{
+				air800_net_init();
+			}
+		}
+	}
+}
 static void urc_func(const char *data, rt_size_t size)
 {
     RT_ASSERT(data);
 
-    LOG_I("URC data : %.*s", size, data);
+	LOG_I("URC data : %s", data);
 }
-
 static const struct at_urc urc_table[] = {
-        {"RING",        "\r\n",                 urc_func},
-        {"Call Ready",  "\r\n",                 urc_func},
-        {"RDY",         "\r\n",                 urc_func},
-        {"NO CARRIER",  "\r\n",                 urc_func},
-        {"",            "CONNECT OK\r\n",     urc_connect_func},
-        {"",            "CONNECT FAIL\r\n",   urc_connect_func},
-        {"SEND OK",     "\r\n",                 urc_send_func},
-        {"SEND FAIL",   "\r\n",                 urc_send_func},
-        {"",            "CLOSE OK\r\n",       urc_close_func},
-        {"",            "CLOSED\r\n",         urc_close_func},
-        {"+RECEIVE,",   "\r\n",                 urc_recv_func}
+        {"RING",        "\r\n",         		urc_func},
+        {"Call Ready",  "\r\n",         		urc_func},
+        {"RDY",         "\r\n",         		urc_func},
+        {"NO CARRIER",  "\r\n",         		urc_func},
+        {"",  			"CONNECT OK\r\n",     	urc_connect_func},
+        {"",			"CONNECT FAIL\r\n",   	urc_connect_func},
+        {"DATA ACCEPT", "\r\n",         		urc_send_func},
+        {"SEND FAIL",   "\r\n",         		urc_send_func},
+        {"",    		"CLOSE OK\r\n",       	urc_close_func},
+        {"",      		"CLOSED\r\n",         	urc_close_func},
+        {"+RECEIVE,",   "\r\n",         		urc_recv_func},
+		{"+CGREG: 0\r\n",   "",         		urc_stat_func},
+//		{"+CGREG: 1\r\n",   "",         		urc_stat_func},
+		{"+CGREG: 2\r\n",   "",         		urc_stat_func},
+		{"+CGREG: 3\r\n",   "",         		urc_stat_func},
+		{"+CGREG: 4\r\n",   "",         		urc_stat_func},
+//		{"+CGREG: 5\r\n",   "",         		urc_stat_func},
 };
 
+//记录错误，并跳转到:__exit
 #define AT_SEND_CMD(resp, resp_line, timeout, cmd)                                                              \
     do                                                                                                          \
     {                                                                                                           \
@@ -601,6 +654,25 @@ static const struct at_urc urc_table[] = {
         }                                                                                                       \
     } while(0);                                                                                                 \
 
+//忽略错误，并跳转到gotag
+#define AT_SEND_CMD_GOTO_TAG(resp, resp_line, timeout, cmd, gotag)                                                     \
+    do                                                                                                          \
+    {                                                                                                           \
+        if (at_exec_cmd(at_resp_set_info(resp, 128, resp_line, rt_tick_from_millisecond(timeout)), cmd) < 0)    \
+        {                                                                                                       \
+            result=RT_EOK;                                                                      				\
+            goto gotag;																							\
+        }                                                                                                       \
+    } while(0); 
+//忽略错误，并继续
+#define AT_SEND_CMD_CONTINUE(resp, resp_line, timeout, cmd)                                                     \
+    do                                                                                                          \
+    {                                                                                                           \
+        if (at_exec_cmd(at_resp_set_info(resp, 128, resp_line, rt_tick_from_millisecond(timeout)), cmd) < 0)    \
+        {                                                                                                       \
+            result=RT_EOK;                                                                      				\
+        }                                                                                                       \
+    } while(0); 
 /* init for AIR800 */
 static void air800_init_thread_entry(void *parameter)
 {	
@@ -609,29 +681,35 @@ static void air800_init_thread_entry(void *parameter)
 #define CREG_RETRY                     10
 #define CGREG_RETRY                    20
 #define CGATT_RETRY					 	20
+	static rt_uint8_t re_conn_count = 0;
+	static rt_uint8_t re_cipshut_count = 0;
     at_response_t resp = RT_NULL;
     int i;
     char parsed_data[10];
-    rt_err_t result;
+    rt_err_t result = RT_EOK;
 	
-__start:
-	result = RT_EOK;
-    resp = at_create_resp(128, 0, rt_tick_from_millisecond(300));
+	MODULE_PIN_INIT();	
+	MODULE_POWER();
+	
+	resp = at_create_resp(128, 0, rt_tick_from_millisecond(300));
     if (!resp)
     {
         LOG_E("No memory for response structure!");
         result = -RT_ENOMEM;
         goto __exit;
     }
-    LOG_D("Start initializing the AIR800 module");
+	network_sta = TA_UNCONNECTED;
 	
+__start_init:	
+	rt_thread_delay(rt_tick_from_millisecond(2000));
+	re_conn_count++;	
+    LOG_D("Start initializing the AIR800 module");
     /* wait AIR800 startup finish */
     if (at_client_wait_connect(AIR800_WAIT_CONNECT_TIME))
     {
         result = -RT_ETIMEOUT;
         goto __exit;
     }
-	rt_thread_delay(rt_tick_from_millisecond(2000));
     /* disable echo */
     AT_SEND_CMD(resp, 0, 300, "ATE0");
     /* get module version */
@@ -644,8 +722,7 @@ __start:
     /* check SIM card */
     for (i = 0; i < CPIN_RETRY; i++)
     {
-        at_exec_cmd(at_resp_set_info(resp, 128, 2, rt_tick_from_millisecond(5000)), "AT+CPIN?");
-
+		AT_SEND_CMD(resp,2,5000,"AT+CPIN?");
         if (at_resp_get_line_by_kw(resp, "READY"))
         {
             LOG_D("SIM card detection success");
@@ -679,24 +756,6 @@ __start:
         result = -RT_ERROR;
         goto __exit;
     }
-    /* check the GSM network is registered */
-    for (i = 0; i < CREG_RETRY; i++)
-    {
-        AT_SEND_CMD(resp, 0, 300, "AT+CREG?");
-        at_resp_parse_line_args_by_kw(resp, "+CREG:", "+CREG: %s", &parsed_data);
-        if (!strncmp(parsed_data, "0,1", sizeof(parsed_data)) || !strncmp(parsed_data, "0,5", sizeof(parsed_data)))
-        {
-            LOG_D("GSM network is registered (%s)", parsed_data);
-            break;
-        }
-        rt_thread_delay(rt_tick_from_millisecond(1000));
-    }
-    if (i == CREG_RETRY)
-    {
-        LOG_E("The GSM network is register failed (%s)", parsed_data);
-        result = -RT_ERROR;
-        goto __exit;
-    }
     /* check the GPRS network is registered */
     for (i = 0; i < CGREG_RETRY; i++)
     {
@@ -704,6 +763,7 @@ __start:
         at_resp_parse_line_args_by_kw(resp, "+CGREG:", "+CGREG: %s", &parsed_data);
         if (!strncmp(parsed_data, "0,1", sizeof(parsed_data)) || !strncmp(parsed_data, "0,5", sizeof(parsed_data)))
         {
+			
             LOG_D("GPRS network is registered (%s)", parsed_data);
             break;
         }
@@ -734,35 +794,48 @@ __start:
         goto __exit;
     }
 	
-	AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=0");		//设置为单链接模式
-	AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=0");		//设置为慢发模式
-	AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");	//启动任务,设置APN为"CMNET"
-	AT_SEND_CMD(resp, 0, 3000, "AT+CIICR");			//激活移动场景,获取IP地址
-	AT_SEND_CMD(resp, 1, 3000, "AT+CIFSR");			//查询分配的IP地址
+__cipshut:
+	re_cipshut_count++;
+	if(re_cipshut_count>2)
+	{
+		re_cipshut_count = 0;
+		result = -RT_ERROR;
+        goto __exit;
+	}
+	AT_SEND_CMD_CONTINUE(resp, 1, 2000, "AT+CIPSHUT");			//关闭移动场景
+	AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=1");					//设置为多链接模式
+	AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=1");					//设置为快发模式
+	AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//启动任务,设置APN为"CMNET"
+	AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//激活移动场景,获取IP地址
+	AT_SEND_CMD(resp, 1, 3000, "AT+CIFSR");						//查询分配的IP地址
+	AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//启用网络注册状态上报
 
 __exit:
-    if (resp)
-    {
-        at_delete_resp(resp);
-    }
-
     if (!result)
     {
+		if (resp)
+		{  
+			at_delete_resp(resp);
+		}
         LOG_I("AT network initialize success!");
-		air800_socket_connect(0,"154.8.162.244",8888,AT_SOCKET_TCP,RT_TRUE);
-		air800_socket_send(0,"abcdefg",7,AT_SOCKET_TCP);		
+		re_conn_count = 0;
+		network_sta = MT_CONN_SUCCESS;
     }
     else
     {
         LOG_E("AT network initialize failed (%d)!", result);
-		rt_pin_write(RST_PIN,1);
-		rt_thread_delay(200);
-		rt_pin_write(RST_PIN,0);
-		goto __start;
+		if(re_conn_count>=2)
+		{
+			MODULE_POWER();
+			re_conn_count = 0;
+		}
+		LOG_D("goto __start_init...");
+		result = RT_EOK;
+		goto __start_init;
     }
 }
 
-int air800_net_init(void)
+static int air800_net_init(void)
 {
 #ifdef PKG_AT_INIT_BY_THREAD
     rt_thread_t tid;
@@ -783,7 +856,7 @@ int air800_net_init(void)
     return RT_EOK;
 }
 
-int air800_ifconfig(void)
+static int air800_ifconfig(void)
 {
     at_response_t resp = RT_NULL;
     char resp_arg[AT_CMD_MAX_LEN] = { 0 };
@@ -840,12 +913,6 @@ static const struct at_device_ops air800_socket_ops = {
 
 static int at_socket_device_init(void)
 {
-	rt_pin_mode(PWD_PIN,PIN_MODE_OUTPUT);
-	rt_pin_mode(RST_PIN,PIN_MODE_OUTPUT);
-	rt_pin_write(PWD_PIN,1);
-	rt_pin_write(RST_PIN,0);
-	rt_thread_delay(rt_tick_from_millisecond(2000));
-	
     /* create current AT socket event */
     at_socket_event = rt_event_create("at_se", RT_IPC_FLAG_FIFO);
     if (at_socket_event == RT_NULL)
