@@ -3,8 +3,8 @@
 
 typedef struct
 {
-	int evt_ex_type;
-	void* evt_ex_args;	
+	int cmd_ex_type;
+	void* cmd_ex_args;
 }at_device_cmd_ex_args, *at_device_cmd_ex_args_t;	//扩展命令参数类型
 
 typedef enum
@@ -40,8 +40,10 @@ typedef enum
 }at_device_cmd_t;
 
 typedef void (*at_device_evt_cb_t)(at_device_evt_t event, void* args);
+typedef int (*at_device_control_t)(at_device_cmd_t cmd, void* in_args, void* out_result);
 
 void at_device_set_event_cb(at_device_evt_t event, at_device_evt_cb_t cb);
+void at_device_set_control(at_device_control_t at_device_control);
 void at_device_event_callback(at_device_evt_t event, void* args);
 int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_result);
 

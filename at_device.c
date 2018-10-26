@@ -2,7 +2,7 @@
 #include <at_device.h>
 
 at_device_evt_cb_t at_dev_evt_cb_set[AT_DEVICE_EVT_ALL] = {0};
-
+at_device_control_t at_device_control_point = RT_NULL;
 /**
  * set AT device event callback
  *
@@ -29,7 +29,15 @@ void at_device_set_event_cb(at_device_evt_t event, at_device_evt_cb_t cb)
 			at_dev_evt_cb_set[i] = cb;
 	}
 }
-
+/**
+ * set AT device control handler
+ *
+ * @param control handler
+ */
+void at_device_set_control(at_device_control_t at_device_control)
+{
+	at_device_control_point = at_device_control;
+}
 /**
  * AT device event callback
  *
@@ -49,14 +57,16 @@ void at_device_event_callback(at_device_evt_t event, void* args)
  * @param control command
  * @param command args
  */
-RT_WEAK int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
+int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
 {
+	if(at_device_control_point)
+		return at_device_control_point(cmd, in_args, out_result);
+	return RT_EEMPTY;
 	/*
 	You can selectively implement some functions of this function in porting.
-	*/
+	
 	int result = RT_EOK;
-	rt_uint8_t c = (rt_uint8_t)cmd;
-	switch(c)
+	switch(cmd)
 	{
 		case AT_DEVICE_CMD_POWER:			
 			break;
@@ -83,4 +93,5 @@ RT_WEAK int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_resu
 		default:break;
 	}
 	return result;
+	*/
 }

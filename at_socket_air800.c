@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <at_socket_air800.h>
 
 #include <rtthread.h>
 #include <sys/socket.h>
@@ -662,7 +663,7 @@ static int get_signal(void)
     char resp_arg[AT_CMD_MAX_LEN] = { 0 };
     int result = 0;
 
-    resp = at_create_resp(64, 2, rt_tick_from_millisecond(300));
+    resp = at_create_resp(64, 0, rt_tick_from_millisecond(300));
     if (!resp)
     {
         rt_kprintf("No memory for response structure!\n");
@@ -682,7 +683,7 @@ static int get_signal(void)
     }
     else
     {
-        rt_kprintf("Parse error, current line buff : %s\n", at_resp_get_line(resp, 2));
+        rt_kprintf("Parse error, current line buff : %s\n", at_resp_get_line(resp, 1));
         goto __exit;
     }
 
@@ -711,7 +712,7 @@ static int get_ip_address(char* ip)
 	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
     if (at_exec_cmd(resp, "AT+CIFSR") < 0)
     {
-        rt_kprintf("AT send ip commands error!\n");
+        rt_kprintf("AT send AT+CIFSR commands error!\n");
         result = RT_ERROR;
         goto __exit;
     }
@@ -723,6 +724,179 @@ static int get_ip_address(char* ip)
     else
     {
         rt_kprintf("Parse error, current line buff : %s\n", at_resp_get_line(resp, 2));
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+__exit:
+	rt_mutex_release(at_event_lock);
+    if (resp)
+    {
+        at_delete_resp(resp);
+    }
+
+    return result;	
+}
+
+static int get_gps(char* gps)
+{
+    at_response_t resp = RT_NULL;
+    char resp_arg[AT_CMD_MAX_LEN] = { 0 };
+    rt_err_t result = RT_EOK;
+
+    resp = at_create_resp(128, 0, rt_tick_from_millisecond(300));
+    if (!resp)
+    {
+        rt_kprintf("No memory for response structure!\n");
+        return -RT_ENOMEM;
+    }
+	
+	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
+    if (at_exec_cmd(resp, "AT+CGNSINF") < 0)
+    {
+        rt_kprintf("AT send AT+CGNSINF commands error!\n");
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+    if (at_resp_parse_line_args(resp, 2, "+CGNSINF:\r\n%s", resp_arg) == 1)
+    {
+		rt_strncpy(gps, resp_arg, rt_strlen(resp_arg));		
+    }
+    else
+    {
+        rt_kprintf("Parse error, current line buff : %s\n", at_resp_get_line(resp, 2));
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+__exit:
+	rt_mutex_release(at_event_lock);
+    if (resp)
+    {
+        at_delete_resp(resp);
+    }
+
+    return result;	
+}
+static int get_base_loc(char* loc)
+{
+    at_response_t resp = RT_NULL;
+    char resp_arg[AT_CMD_MAX_LEN] = { 0 };
+    rt_err_t result = RT_EOK;
+
+    resp = at_create_resp(128, 2, rt_tick_from_millisecond(4000));
+    if (!resp)
+    {
+        rt_kprintf("No memory for response structure!\n");
+        return -RT_ENOMEM;
+    }
+	
+	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
+    if (at_exec_cmd(resp, "AT+AMGSMLOC") < 0)
+    {
+        rt_kprintf("AT send AT+AMGSMLOC commands error!\n");
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+    if (at_resp_parse_line_args(resp, 2, "+AMGSMLOC: %s", resp_arg) == 1)
+    {
+		rt_strncpy(loc, resp_arg, rt_strlen(resp_arg));		
+    }
+    else
+    {
+        rt_kprintf("Parse error, current line buff : %s\n", at_resp_get_line(resp, 2));
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+__exit:
+	rt_mutex_release(at_event_lock);
+    if (resp)
+    {
+        at_delete_resp(resp);
+    }
+
+    return result;	
+}
+
+static int tts_play(air800_args_tts_play_t args)
+{
+    at_response_t resp = RT_NULL;
+    rt_err_t result = RT_EOK;
+
+    resp = at_create_resp(64, 0, rt_tick_from_millisecond(300));
+    if (!resp)
+    {
+        rt_kprintf("No memory for response structure!\n");
+        return -RT_ENOMEM;
+    }
+	
+	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
+    if (at_exec_cmd(resp, "AT+CTTS=%d,\"%s\"", args->mode, args->text) < 0)
+    {
+        rt_kprintf("AT send AT+CTTS commands error!\n");
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+__exit:
+	rt_mutex_release(at_event_lock);
+    if (resp)
+    {
+        at_delete_resp(resp);
+    }
+
+    return result;	
+}
+
+static int tts_stop(void)
+{
+    at_response_t resp = RT_NULL;
+    rt_err_t result = RT_EOK;
+
+    resp = at_create_resp(64, 0, rt_tick_from_millisecond(300));
+    if (!resp)
+    {
+        rt_kprintf("No memory for response structure!\n");
+        return -RT_ENOMEM;
+    }
+	
+	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
+    if (at_exec_cmd(resp, "AT+CTTS=0") < 0)
+    {
+        rt_kprintf("AT send AT+CTTS=0 commands error!\n");
+        result = RT_ERROR;
+        goto __exit;
+    }
+
+__exit:
+	rt_mutex_release(at_event_lock);
+    if (resp)
+    {
+        at_delete_resp(resp);
+    }
+
+    return result;	
+}
+
+static int tts_set(air800_args_tts_set_t args)
+{
+    at_response_t resp = RT_NULL;
+    rt_err_t result = RT_EOK;
+
+    resp = at_create_resp(64, 0, rt_tick_from_millisecond(300));
+    if (!resp)
+    {
+        rt_kprintf("No memory for response structure!\n");
+        return -RT_ENOMEM;
+    }
+	
+	rt_mutex_take(at_event_lock, RT_WAITING_FOREVER);
+    if (at_exec_cmd(resp, "AT+CTTSPARAM=%d,%d,%d,%d,%d", args->volume, args->mode, args->pitch, args->speed, args->channel) < 0)
+    {
+        rt_kprintf("AT send AT+CTTSPARAM commands error!\n");
         result = RT_ERROR;
         goto __exit;
     }
@@ -750,11 +924,9 @@ static const struct at_urc urc_table[] = {
         {"",      		"CLOSED\r\n",         	urc_close_func},
         {"+RECEIVE,",   "\r\n",         		urc_recv_func},
 		{"+CGREG: 0\r\n",   "",         		urc_stat_func},
-//		{"+CGREG: 1\r\n",   "",         		urc_stat_func},
 		{"+CGREG: 2\r\n",   "",         		urc_stat_func},
 		{"+CGREG: 3\r\n",   "",         		urc_stat_func},
 		{"+CGREG: 4\r\n",   "",         		urc_stat_func},
-//		{"+CGREG: 5\r\n",   "",         		urc_stat_func},
 };
 
 /* init for AIR800 */
@@ -789,7 +961,7 @@ static void air800_init_thread_entry(void *parameter)
 		}
 		
 	__start_init:	
-		rt_thread_delay(rt_tick_from_millisecond(2000));
+		rt_thread_delay(rt_tick_from_millisecond(5000));
 		re_conn_count++;	
 		LOG_D("Start initializing the AIR800 module");
 		/* wait AIR800 startup finish */
@@ -804,7 +976,13 @@ static void air800_init_thread_entry(void *parameter)
 			at_device_event_callback(AT_DEVICE_EVT_AT_CONN_OK, RT_NULL);
 		}
 		/* disable echo */
-		AT_SEND_CMD(resp, 0, 300, "ATE0");
+		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
+		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
+		AT_SEND_CMD(resp, 0, 500, "ATE0");	
+		rt_thread_delay(rt_tick_from_millisecond(500));
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//打开GPS
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//设置GPS输出格式
+
 		/* get module version */
 		AT_SEND_CMD(resp, 0, 300, "ATI");
 		/* show module version */
@@ -909,7 +1087,7 @@ static void air800_init_thread_entry(void *parameter)
 		AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//启动任务,设置APN为"CMNET"
 		AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//激活移动场景,获取IP地址
 		AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//启用网络注册状态上报
-
+		
 	__exit:		
 		if (!result)
 		{
@@ -940,40 +1118,47 @@ static void air800_init_thread_entry(void *parameter)
 			LOG_D("goto __start_init...");
 			result = RT_EOK;
 			goto __start_init;
-		}		
+		}
 	}
 }
 
-static int air800_net_init(void)
-{
-#ifdef PKG_AT_INIT_BY_THREAD
-	rt_thread_t tid;
-	tid = rt_thread_create("air800_net_init", air800_init_thread_entry, RT_NULL, AIR800_THREAD_STACK_SIZE, AIR800_THREAD_PRIORITY, 20);
-	if (tid)
+static void at_device_cmd_extention_handle(void* in_args, void* out_result)
+{	
+	RT_ASSERT(sizeof(in_args)==sizeof(at_device_cmd_ex_args_t));
+	at_device_cmd_ex_args_t cmd_ex_args = (at_device_cmd_ex_args_t)in_args;
+	air800_cmd_t air800_cmd = (air800_cmd_t)cmd_ex_args->cmd_ex_type;
+	switch(air800_cmd)
 	{
-		rt_thread_startup(tid);
+		case AIR800_CMD_TTS_SET://设置TTS播放模式
+			{
+				air800_args_tts_set_t air800_args = (air800_args_tts_set_t)cmd_ex_args->cmd_ex_args;
+				tts_set(air800_args);
+			}
+			break;
+		case AIR800_CMD_TTS_PLAY://TTS播放
+			{				
+				air800_args_tts_play_t air800_args = (air800_args_tts_play_t)cmd_ex_args->cmd_ex_args;
+				tts_play(air800_args);
+			}
+			break;
+		case AIR800_CMD_TTS_STOP://TTS停止播放
+			{				
+				tts_stop();
+			}
+			break;		
+		default:break;
 	}
-	else
-	{
-		LOG_E("Create AT initialization thread fail!");
-	}
-#else
-	air800_init_thread_entry(RT_NULL);
-#endif		
-	return RT_EOK;
 }
-
 /**
  * control AT device do sth
  *
  * @param control command
  * @param command args
  */
-int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
+static int air800_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
 {
 	int result = RT_EOK;
-	rt_uint8_t c = (rt_uint8_t)cmd;
-	switch(c)
+	switch(cmd)
 	{
 		case AT_DEVICE_CMD_POWER:
 			MODULE_POWER();
@@ -1017,14 +1202,67 @@ int at_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
 			}
 			break;
 		case AT_DEVICE_CMD_BASELOC:
+			{
+				char* loc = rt_calloc(128, 1);
+				if(get_base_loc(loc)==RT_EOK)
+				{
+					if(out_result)
+						rt_strncpy(out_result, loc, rt_strlen(loc));
+					else
+						at_device_event_callback(AT_DEVICE_EVT_BASELOC, loc);
+				}
+				else
+				{
+					result = RT_ERROR;
+				}
+				rt_free(loc);
+			}
 			break;
 		case AT_DEVICE_CMD_GPS:
+			{
+				char* gps = rt_calloc(128, 1);
+				if(get_gps(gps)==RT_EOK)
+				{
+					if(out_result)
+						rt_strncpy(out_result, gps, rt_strlen(gps));
+					else
+						at_device_event_callback(AT_DEVICE_EVT_GPS, gps);
+				}
+				else
+				{
+					result = RT_ERROR;
+				}
+				rt_free(gps);
+			}		
 			break;
 		case AT_DEVICE_CMD_EXTENTION:
+			{
+				at_device_cmd_extention_handle(in_args, out_result);
+			}
 			break;
 		default:break;
 	}
 	return result;
+}
+
+static int air800_net_init(void)
+{
+	at_device_set_control(air800_device_control);
+#ifdef PKG_AT_INIT_BY_THREAD
+	rt_thread_t tid;
+	tid = rt_thread_create("air800_net_init", air800_init_thread_entry, RT_NULL, AIR800_THREAD_STACK_SIZE, AIR800_THREAD_PRIORITY, 20);
+	if (tid)
+	{
+		rt_thread_startup(tid);
+	}
+	else
+	{
+		LOG_E("Create AT initialization thread fail!");
+	}
+#else
+	air800_init_thread_entry(RT_NULL);
+#endif		
+	return RT_EOK;
 }
 
 static const struct at_device_ops air800_socket_ops = {
