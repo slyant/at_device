@@ -158,10 +158,10 @@ FINSH_FUNCTION_EXPORT_ALIAS(at_ttsset, at_ttsset, control the at device TTS setu
 
 static void getip_thread_entry(void* parameter)
 {
-	static int get_count = 10;
-	char text[128] = {0};
+	static int get_count = 0;
 	while(1)
 	{
+		char* text = rt_calloc(1,128);
 		rt_thread_mdelay(60*1000);
 		if(at_device_control(AT_DEVICE_CMD_IP, RT_NULL, RT_NULL)!=RT_EOK)
 		{
@@ -173,15 +173,16 @@ static void getip_thread_entry(void* parameter)
 			sprintf(text, "获取IP成功:%d", get_count++);
 		}
 		at_tts_play(text);
+		rt_free(text);
 	}
 }
 
 static int at_device_sample(void)
 {
-	rt_thread_t getip_thread = rt_thread_create("getip",
-												getip_thread_entry, RT_NULL,
-												128,
-												10,	10);
+	rt_thread_t  getip_thread = rt_thread_create("getip", 
+							getip_thread_entry,  RT_NULL,
+							2048,
+							10,	10);
 	if(getip_thread!=RT_NULL)
 		rt_thread_startup(getip_thread);
 	
