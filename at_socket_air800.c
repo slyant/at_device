@@ -1,25 +1,11 @@
 /*
- * File      : at_socket_air800.c
- * This file is part of RT-Thread RTOS
- * COPYRIGHT (C) 2006 - 2018, RT-Thread Development Team
+ * Copyright (c) 2006-2018, RT-Thread Development Team
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Change Logs:
  * Date           Author       Notes
- * 2018-10-17     slyant     
+ * 2018-10-27     slyant	first version
  */
 
 #include <stdio.h>
@@ -111,16 +97,16 @@ static int air800_net_init(void);
 //开/关机
 #define MODULE_POWER() do{\
 	rt_pin_write(PWD_PIN,0);\
-	rt_thread_delay(rt_tick_from_millisecond(500));\
+	rt_thread_mdelay(500);\
 	rt_pin_write(PWD_PIN,1);\
-	rt_thread_delay(rt_tick_from_millisecond(2000));\
+	rt_thread_mdelay(2000);\
 	rt_pin_write(PWD_PIN,0);\
 	}while(0);\
 //设置为上电开机状态时为重启功能
 #define MODULE_RESET() do{\
 	rt_pin_write(PWD_PIN,1);\
 	rt_pin_write(RST_PIN,1);\
-	rt_thread_delay(rt_tick_from_millisecond(2000));\
+	rt_thread_mdelay(2000);\
 	rt_pin_write(RST_PIN,0);\
 	}while(0);\
 
@@ -320,7 +306,7 @@ static int at_wait_send_finish(int socket, size_t settings_size)
         {
             return RT_EOK;
         }
-        rt_thread_delay(rt_tick_from_millisecond(50));
+        rt_thread_mdelay(50);
     }
 
     return -RT_ETIMEOUT;
@@ -479,7 +465,7 @@ static int air800_domain_resolve(const char *name, char ip[16])
         /* parse the third line of response data, get the IP address */
         if(r==0 || at_resp_parse_line_args_by_kw(resp, "+CDNSGIP", "%*[^\"]\"%[^\"]\",\"%[^\"]", RT_NULL, recv_ip) < 0)
         {
-            rt_thread_delay(rt_tick_from_millisecond(100));
+            rt_thread_mdelay(100);
             /* resolve failed, maybe receive an URC CRLF */
 			result = -RT_ERROR;
             continue;
@@ -487,7 +473,7 @@ static int air800_domain_resolve(const char *name, char ip[16])
 
         if (strlen(recv_ip) < 7)
         {
-            rt_thread_delay(rt_tick_from_millisecond(100));
+            rt_thread_mdelay(100);
             /* resolve failed, maybe receive an URC CRLF */
 			result = -RT_ERROR;
             continue;
@@ -961,7 +947,7 @@ static void air800_init_thread_entry(void *parameter)
 		}
 		
 	__start_init:	
-		rt_thread_delay(rt_tick_from_millisecond(5000));
+		rt_thread_mdelay(5000);
 		re_conn_count++;	
 		LOG_D("Start initializing the AIR800 module");
 		/* wait AIR800 startup finish */
@@ -979,7 +965,7 @@ static void air800_init_thread_entry(void *parameter)
 		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
 		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
 		AT_SEND_CMD(resp, 0, 500, "ATE0");	
-		rt_thread_delay(rt_tick_from_millisecond(500));
+		rt_thread_mdelay(500);
 		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//打开GPS
 		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//设置GPS输出格式
 
@@ -999,7 +985,7 @@ static void air800_init_thread_entry(void *parameter)
 				LOG_D("SIM card detection success");
 				break;
 			}
-			rt_thread_delay(rt_tick_from_millisecond(1000));
+			rt_thread_mdelay(1000);
 		}
 		if (i == CPIN_RETRY)
 		{
@@ -1008,7 +994,7 @@ static void air800_init_thread_entry(void *parameter)
 			goto __exit;
 		}
 		/* waiting for dirty data to be digested */
-		rt_thread_delay(rt_tick_from_millisecond(10));
+		rt_thread_mdelay(10);
 		/* check signal strength */
 		for (i = 0; i < CSQ_RETRY; i++)
 		{
@@ -1020,7 +1006,7 @@ static void air800_init_thread_entry(void *parameter)
 				at_device_event_callback(AT_DEVICE_EVT_SIGNAL_STRENGTH, (void*)get_signal_percent(parsed_data));
 				break;
 			}
-			rt_thread_delay(rt_tick_from_millisecond(1000));
+			rt_thread_mdelay(1000);
 		}
 		if (i == CSQ_RETRY)
 		{
@@ -1044,7 +1030,7 @@ static void air800_init_thread_entry(void *parameter)
 				if(cgreg_stat==3)
 					at_device_event_callback(AT_DEVICE_EVT_NET_REG_DENY, RT_NULL);
 			}
-			rt_thread_delay(rt_tick_from_millisecond(1000));
+			rt_thread_mdelay(1000);
 		}
 		if (i == CGREG_RETRY)
 		{			
@@ -1064,7 +1050,7 @@ static void air800_init_thread_entry(void *parameter)
 				LOG_D("GPRS network is Attached (%s)", parsed_data);
 				break;
 			}
-			rt_thread_delay(rt_tick_from_millisecond(1000));
+			rt_thread_mdelay(1000);
 		}
 		if (i == CGATT_RETRY)
 		{
