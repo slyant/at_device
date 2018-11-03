@@ -195,4 +195,4 @@ static int at_device_sample(void)
 
 	return RT_EOK;
 }
-INIT_APP_EXPORT(at_device_sample);
+//INIT_APP_EXPORT(at_device_sample);
