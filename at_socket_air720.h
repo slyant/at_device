@@ -10,6 +10,9 @@
 #ifndef __AT_SOCKET_AIR720_H__
 #define __AT_SOCKET_AIR720_H__
 
-
+typedef enum
+{
+	AIR720_CMD_XXX
+}air720_cmd_t;
 
 #endif

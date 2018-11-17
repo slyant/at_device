@@ -74,8 +74,6 @@ static void at_event_callback(at_device_evt_t event, void* args)
 			break;
 		case AT_DEVICE_EVT_NET_CONN_OK:
 			LOG_I("AT_DEVICE_EVT_NET_CONN_OK,IP:%s", args);	
-			at_ttsset(90,1,50,60,0);
-			at_tts_play("连接成功");
 			break;
 		case AT_DEVICE_EVT_NET_CONN_FAIL:
 			LOG_I("AT_DEVICE_EVT_NET_CONN_FAIL");
@@ -104,12 +102,8 @@ MSH_CMD_EXPORT_ALIAS(at_power, at_power, control the at device power on/off);
 MSH_CMD_EXPORT_ALIAS(at_reset, at_reset, control the at device reset);
 MSH_CMD_EXPORT_ALIAS(at_init, at_init, control the at device initialization);
 MSH_CMD_EXPORT_ALIAS(at_getip, at_getip, get the at device ip address);
-MSH_CMD_EXPORT_ALIAS(at_getgps, at_getgps, get the at device gps);
 MSH_CMD_EXPORT_ALIAS(at_getloc, at_getloc, get the at device base location);
 MSH_CMD_EXPORT_ALIAS(at_signal, at_signal, get the at device signal strength);
-MSH_CMD_EXPORT_ALIAS(at_tts, at_tts, control the at device TTS play);
-MSH_CMD_EXPORT_ALIAS(at_ttsstop, at_ttsstop, control the at device TTS stop);
-FINSH_FUNCTION_EXPORT_ALIAS(at_ttsset, at_ttsset, control the at device TTS setup);
 #endif
 
 extern int get_weather(int argc, char **argv);
@@ -132,7 +126,7 @@ static void getip_thread_entry(void* parameter)
 			{
 				sprintf(text, "获取IP成功:%d", get_count++);
 			}
-			at_tts_play(text);
+			rt_kprintf("%s\r\n", text);
 			rt_free(text);
 		}while(0);
 	}
