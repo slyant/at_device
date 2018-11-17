@@ -5,12 +5,12 @@
  *
  * Change Logs:
  * Date           Author       Notes
- * 2018-10-27     slyant	first version
+ * 2018-11-17     slyant	first version
  */
 
 #include <stdio.h>
 #include <string.h>
-#include <at_socket_air800.h>
+#include <at_socket_air720.h>
 
 #include <rtthread.h>
 #include <sys/socket.h>
@@ -23,10 +23,10 @@
 #error "This AT Client version is older, please check and update latest AT Client!"
 #endif
 
-#define LOG_TAG              "at.air800"
+#define LOG_TAG              "at.air720"
 #include <at_log.h>
 
-#ifdef AT_DEVICE_AIR800
+#ifdef AT_DEVICE_AIR720
 
 #define AIR800_MODULE_SEND_MAX_SIZE       1460
 #define AIR800_WAIT_CONNECT_TIME          2000
@@ -52,9 +52,9 @@ static at_evt_cb_t at_evt_cb_set[] = {
         [AT_SOCKET_EVT_CLOSED] = RT_NULL,
 };
 
-static int air800_net_init(void);
-#define PWD_PIN		(27)
-#define RST_PIN		(26)
+static int air720_net_init(void);
+#define PWD_PIN		(34)
+#define RST_PIN		(57)
 
 //记录错误，并跳转到:__exit
 #define AT_SEND_CMD(resp, resp_line, timeout, cmd)                                                              \
@@ -138,7 +138,7 @@ static int at_socket_event_recv(rt_uint32_t event, rt_uint32_t timeout, rt_uint8
  *         -2: wait socket event timeout
  *         -5: no memory
  */
-static int air800_socket_close(int socket)
+static int air720_socket_close(int socket)
 {
     int result = 0;
 
@@ -179,7 +179,7 @@ __exit:
  *          -2: wait socket event timeout
  *          -5: no memory
  */
-static int air800_socket_connect(int socket, char *ip, int32_t port, enum at_socket_type type, rt_bool_t is_client)
+static int air720_socket_connect(int socket, char *ip, int32_t port, enum at_socket_type type, rt_bool_t is_client)
 {
     int result = 0, event_result = 0;
     rt_bool_t retryed = RT_FALSE;
@@ -240,7 +240,7 @@ __retry:
         if (!retryed)
         {
             LOG_E("socket (%d) connect failed, maybe the socket was not be closed at the last time and now will retry.", socket);
-            if (air800_socket_close(socket) < 0)
+            if (air720_socket_close(socket) < 0)
             {
                 goto __exit;
             }
@@ -325,7 +325,7 @@ static int at_wait_send_finish(int socket, size_t settings_size)
  *          -2: waited socket event timeout
  *          -5: no memory
  */
-static int air800_socket_send(int socket, const char *buff, size_t bfsz, enum at_socket_type type)
+static int air720_socket_send(int socket, const char *buff, size_t bfsz, enum at_socket_type type)
 {
     int result = 0, event_result = 0;
     at_response_t resp = RT_NULL;
@@ -428,7 +428,7 @@ __exit:
  *         -2: wait socket event timeout
  *         -5: no memory
  */
-static int air800_domain_resolve(const char *name, char ip[16])
+static int air720_domain_resolve(const char *name, char ip[16])
 {
 #define RESOLVE_RETRY                  3
 
@@ -495,7 +495,7 @@ __exit:
     }
 	if(result!=RT_EOK || i==RESOLVE_RETRY)
 	{
-		air800_net_init();
+		air720_net_init();
 	}
     return result;
 }
@@ -506,7 +506,7 @@ __exit:
  * @param event notice event
  * @param cb notice callback
  */
-static void air800_socket_set_event_cb(at_socket_evt_t event, at_evt_cb_t cb)
+static void air720_socket_set_event_cb(at_socket_evt_t event, at_evt_cb_t cb)
 {
 	rt_uint8_t i = (rt_uint8_t)event;
     if ( i< sizeof(at_evt_cb_set) / sizeof(at_evt_cb_set[0]))
@@ -626,7 +626,7 @@ static void urc_stat_func(const char *data, rt_size_t size)
 	{
 		if(sta!=1 && sta!=5)
 		{
-			air800_net_init();//脱网时重新初始化网络
+			air720_net_init();//脱网时重新初始化网络
 		}
 	}
 }
@@ -807,7 +807,7 @@ __exit:
     return result;	
 }
 
-static int tts_play(air800_args_tts_play_t args)
+static int tts_play(air720_args_tts_play_t args)
 {
     at_response_t resp = RT_NULL;
     rt_err_t result = RT_EOK;
@@ -867,7 +867,7 @@ __exit:
     return result;	
 }
 
-static int tts_set(air800_args_tts_set_t args)
+static int tts_set(air720_args_tts_set_t args)
 {
     at_response_t resp = RT_NULL;
     rt_err_t result = RT_EOK;
@@ -916,7 +916,7 @@ static const struct at_urc urc_table[] = {
 };
 
 /* init for AIR800 */
-static void air800_init_thread_entry(void *parameter)
+static void air720_init_thread_entry(void *parameter)
 {		
 #define CPIN_RETRY						10
 #define CSQ_RETRY						10
@@ -1112,19 +1112,19 @@ static void at_device_cmd_extention_handle(void* in_args, void* out_result)
 {	
 	RT_ASSERT(sizeof(in_args)==sizeof(at_device_cmd_ex_args_t));
 	at_device_cmd_ex_args_t cmd_ex_args = (at_device_cmd_ex_args_t)in_args;
-	air800_cmd_t air800_cmd = (air800_cmd_t)cmd_ex_args->cmd_ex_type;
-	switch(air800_cmd)
+	air720_cmd_t air720_cmd = (air720_cmd_t)cmd_ex_args->cmd_ex_type;
+	switch(air720_cmd)
 	{
 		case AIR800_CMD_TTS_SET://设置TTS播放模式
 			{
-				air800_args_tts_set_t air800_args = (air800_args_tts_set_t)cmd_ex_args->cmd_ex_args;
-				tts_set(air800_args);
+				air720_args_tts_set_t air720_args = (air720_args_tts_set_t)cmd_ex_args->cmd_ex_args;
+				tts_set(air720_args);
 			}
 			break;
 		case AIR800_CMD_TTS_PLAY://TTS播放
 			{				
-				air800_args_tts_play_t air800_args = (air800_args_tts_play_t)cmd_ex_args->cmd_ex_args;
-				tts_play(air800_args);
+				air720_args_tts_play_t air720_args = (air720_args_tts_play_t)cmd_ex_args->cmd_ex_args;
+				tts_play(air720_args);
 			}
 			break;
 		case AIR800_CMD_TTS_STOP://TTS停止播放
@@ -1141,7 +1141,7 @@ static void at_device_cmd_extention_handle(void* in_args, void* out_result)
  * @param control command
  * @param command args
  */
-static int air800_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
+static int air720_device_control(at_device_cmd_t cmd, void* in_args, void* out_result)
 {
 	int result = RT_EOK;
 	switch(cmd)
@@ -1153,7 +1153,7 @@ static int air800_device_control(at_device_cmd_t cmd, void* in_args, void* out_r
 			MODULE_RESET();
 			break;
 		case AT_DEVICE_CMD_INIT_NET:
-			air800_net_init();
+			air720_net_init();
 			break;
 		case AT_DEVICE_CMD_LOW_POWER:
 			break;
@@ -1231,12 +1231,12 @@ static int air800_device_control(at_device_cmd_t cmd, void* in_args, void* out_r
 	return result;
 }
 
-static int air800_net_init(void)
+static int air720_net_init(void)
 {
-	at_device_set_control(air800_device_control);
+	at_device_set_control(air720_device_control);
 #ifdef PKG_AT_INIT_BY_THREAD
 	rt_thread_t tid;
-	tid = rt_thread_create("air800_net_init", air800_init_thread_entry, RT_NULL, AIR800_THREAD_STACK_SIZE, AIR800_THREAD_PRIORITY, 20);
+	tid = rt_thread_create("air720_net_init", air720_init_thread_entry, RT_NULL, AIR800_THREAD_STACK_SIZE, AIR800_THREAD_PRIORITY, 20);
 	if (tid)
 	{
 		rt_thread_startup(tid);
@@ -1246,17 +1246,17 @@ static int air800_net_init(void)
 		LOG_E("Create AT initialization thread fail!");
 	}
 #else
-	air800_init_thread_entry(RT_NULL);
+	air720_init_thread_entry(RT_NULL);
 #endif		
 	return RT_EOK;
 }
 
-static const struct at_device_ops air800_socket_ops = {
-    air800_socket_connect,
-    air800_socket_close,
-    air800_socket_send,
-    air800_domain_resolve,
-    air800_socket_set_event_cb,
+static const struct at_device_ops air720_socket_ops = {
+    air720_socket_connect,
+    air720_socket_close,
+    air720_socket_send,
+    air720_domain_resolve,
+    air720_socket_set_event_cb,
 };
 
 static int at_socket_device_init(void)
@@ -1294,14 +1294,14 @@ static int at_socket_device_init(void)
     /* register URC data execution function  */
     at_set_urc_table(urc_table, sizeof(urc_table) / sizeof(urc_table[0]));
 
-    /* initialize air800 network */
-    air800_net_init();
+    /* initialize air720 network */
+    air720_net_init();
 
-    /* set air800 AT Socket options */
-    at_socket_device_register(&air800_socket_ops);	
+    /* set air720 AT Socket options */
+    at_socket_device_register(&air720_socket_ops);	
 
     return RT_EOK;
 }
 INIT_ENV_EXPORT(at_socket_device_init);
 
-#endif /* AT_DEVICE_AIR800 */
+#endif /* AT_DEVICE_AIR720 */

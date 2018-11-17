@@ -4,6 +4,9 @@ cwd = GetCurrentDir()
 
 src = Glob('at_device.c')
 
+if GetDepend(['AT_DEVICE_AIR720']):
+	src += ['at_socket_air720.c','at_air720_sample.c']
+	
 if GetDepend(['AT_DEVICE_AIR800']):
 	src += ['at_socket_air800.c','at_air800_sample.c']
     
