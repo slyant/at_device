@@ -2,17 +2,22 @@ from building import *
 
 cwd = GetCurrentDir()
 
+src = Glob('at_device.c')
+
+if GetDepend(['AT_DEVICE_AIR720']):
+	src += ['at_socket_air720.c','at_air720_sample.c']
+	
 if GetDepend(['AT_DEVICE_AIR800']):
-    src = Glob('at_socket_air800.c','at_device_sample.c')
+	src += ['at_socket_air800.c','at_air800_sample.c']
     
 if GetDepend(['AT_DEVICE_M26']):
-    src = Glob('at_socket_m26.c')
+    src += ['at_socket_m26.c']
 
 if GetDepend(['AT_DEVICE_EC20']):
-    src = Glob('at_socket_ec20.c')
+    src += ['at_socket_ec20.c']
 
 if GetDepend(['AT_DEVICE_ESP8266']):
-    src = Glob('at_socket_esp8266.c')
+    src += ['at_socket_esp8266.c']
 
 if GetDepend(['AT_DEVICE_NOT_SELECTED']):
    src = Glob('*.c')
