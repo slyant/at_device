@@ -19,20 +19,20 @@ typedef enum
 
 typedef struct
 {
-	int volume;		//²¥·ÅÒôÁ¿(0-100)
-	int mode;		//Êı×Ö²¥·ÅÄ£Ê½(0-3)
-	int pitch;		//²¥·ÅÒô¸ß(1-100)
-	int speed;		//²¥·ÅËÙ¶È(1-100)
-	int channel;	//²¥·ÅÍ¨µÀ:(0)main channel;(1)aux channel
+	int volume;		//æ’­æ”¾éŸ³é‡(0-100)
+	int mode;		//æ•°å­—æ’­æ”¾æ¨¡å¼(0-3)
+	int pitch;		//æ’­æ”¾éŸ³é«˜(1-100)
+	int speed;		//æ’­æ”¾é€Ÿåº¦(1-100)
+	int channel;	//æ’­æ”¾é€šé“:(0)main channel;(1)aux channel
 }air800_args_tts_set, *air800_args_tts_set_t;
 
 typedef struct
 {
-	int mode;		//TTS¹¤×÷Ä£Ê½:
-								//(0)Í£Ö¹²¥·ÅTTS;
-								//(1)²¥·ÅTTS£¬textÊ¹ÓÃUCS2±àÂë;
-								//(2)²¥·ÅTTS£¬textÊ¹ÓÃASCII(Ó¢ÎÄ)»òGBK±àÂë(ÖĞÎÄ)
-	char* text;		//TTSÎÄ±¾,×î´ó³¤¶È479¸ö×Ö·û
+	int mode;		//TTSå·¥ä½œæ¨¡å¼:
+								//(0)åœæ­¢æ’­æ”¾TTS;
+								//(1)æ’­æ”¾TTSï¼Œtextä½¿ç”¨UCS2ç¼–ç ;
+								//(2)æ’­æ”¾TTSï¼Œtextä½¿ç”¨ASCII(è‹±æ–‡)æˆ–GBKç¼–ç (ä¸­æ–‡)
+	char* text;		//TTSæ–‡æœ¬,æœ€å¤§é•¿åº¦479ä¸ªå­—ç¬¦
 }air800_args_tts_play, *air800_args_tts_play_t;
 
 #endif

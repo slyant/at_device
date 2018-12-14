@@ -85,7 +85,7 @@ static void at_tts_play(char* text)
 }
 static void at_tts(void)
 {
-	char* text = "Óà¶î²»×ã£¬Çë³äÖµ";
+	char* text = "ä½™é¢ä¸è¶³ï¼Œè¯·å……å€¼";
 	at_tts_play(text);
 }
 static void at_ttsstop(void)
@@ -119,7 +119,7 @@ static void at_event_callback(at_device_evt_t event, void* args)
 		case AT_DEVICE_EVT_NET_CONN_OK:
 			LOG_I("AT_DEVICE_EVT_NET_CONN_OK,IP:%s", args);	
 			at_ttsset(90,1,50,60,0);
-			at_tts_play("Á¬½Ó³É¹¦");
+			at_tts_play("è¿æ¥æˆåŠŸ");
 			break;
 		case AT_DEVICE_EVT_NET_CONN_FAIL:
 			LOG_I("AT_DEVICE_EVT_NET_CONN_FAIL");
@@ -170,11 +170,11 @@ static void getip_thread_entry(void* parameter)
 			if(at_device_control(AT_DEVICE_CMD_IP, RT_NULL, RT_NULL)!=RT_EOK)
 			{
 				
-				sprintf(text, "»ñÈ¡IPÊ§°Ü:%d", get_count++);
+				sprintf(text, "è·å–IPå¤±è´¥:%d", get_count++);
 			}
 			else
 			{
-				sprintf(text, "»ñÈ¡IP³É¹¦:%d", get_count++);
+				sprintf(text, "è·å–IPæˆåŠŸ:%d", get_count++);
 			}
 			at_tts_play(text);
 			rt_free(text);

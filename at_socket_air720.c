@@ -57,7 +57,7 @@ static int air720_net_init(void);
 #define PWD_PIN		(34)
 #define RST_PIN		(57)
 
-//¼ÇÂ¼´íÎó£¬²¢Ìø×ªµ½:__exit
+//è®°å½•é”™è¯¯ï¼Œå¹¶è·³è½¬åˆ°:__exit
 #define AT_SEND_CMD(resp, resp_line, timeout, cmd)                                                              \
     do                                                                                                          \
     {                                                                                                           \
@@ -68,7 +68,7 @@ static int air720_net_init(void);
         }                                                                                                       \
     } while(0);                                                                                                 \
 
-//ºöÂÔ´íÎó£¬²¢Ìø×ªµ½gotag
+//å¿½ç•¥é”™è¯¯ï¼Œå¹¶è·³è½¬åˆ°gotag
 #define AT_SEND_CMD_GOTO_TAG(resp, resp_line, timeout, cmd, gotag)                                                     \
     do                                                                                                          \
     {                                                                                                           \
@@ -78,7 +78,7 @@ static int air720_net_init(void);
             goto gotag;																							\
         }                                                                                                       \
     } while(0); 
-//ºöÂÔ´íÎó£¬²¢¼ÌĞø
+//å¿½ç•¥é”™è¯¯ï¼Œå¹¶ç»§ç»­
 #define AT_SEND_CMD_CONTINUE(resp, resp_line, timeout, cmd)                                                     \
     do                                                                                                          \
     {                                                                                                           \
@@ -628,7 +628,7 @@ static void urc_stat_func(const char *data, rt_size_t size)
 	{
 		if(sta!=1 && sta!=5)
 		{
-			air720_net_init();//ÍÑÍøÊ±ÖØĞÂ³õÊ¼»¯ÍøÂç
+			air720_net_init();//è„±ç½‘æ—¶é‡æ–°åˆå§‹åŒ–ç½‘ç»œ
 		}
 	}
 }
@@ -836,8 +836,8 @@ static void air720_init_thread_entry(void *parameter)
 		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
 		AT_SEND_CMD(resp, 0, 500, "ATE0");	
 		rt_thread_mdelay(500);
-		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//´ò¿ªGPS
-		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//ÉèÖÃGPSÊä³ö¸ñÊ½
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//æ‰“å¼€GPS
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//è®¾ç½®GPSè¾“å‡ºæ ¼å¼
 
 		/* get module version */
 		AT_SEND_CMD(resp, 0, 300, "ATI");
@@ -937,12 +937,12 @@ static void air720_init_thread_entry(void *parameter)
 			result = -RT_ERROR;
 			goto __exit;
 		}
-		AT_SEND_CMD_CONTINUE(resp, 1, 2000, "AT+CIPSHUT");			//¹Ø±ÕÒÆ¶¯³¡¾°
-		AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=1");					//ÉèÖÃÎª¶àÁ´½ÓÄ£Ê½
-		AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=1");					//ÉèÖÃÎª¿ì·¢Ä£Ê½
-		AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//Æô¶¯ÈÎÎñ,ÉèÖÃAPNÎª"CMNET"
-		AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//¼¤»îÒÆ¶¯³¡¾°,»ñÈ¡IPµØÖ·
-		AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//ÆôÓÃÍøÂç×¢²á×´Ì¬ÉÏ±¨
+		AT_SEND_CMD_CONTINUE(resp, 1, 2000, "AT+CIPSHUT");			//å…³é—­ç§»åŠ¨åœºæ™¯
+		AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=1");					//è®¾ç½®ä¸ºå¤šé“¾æ¥æ¨¡å¼
+		AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=1");					//è®¾ç½®ä¸ºå¿«å‘æ¨¡å¼
+		AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//å¯åŠ¨ä»»åŠ¡,è®¾ç½®APNä¸º"CMNET"
+		AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//æ¿€æ´»ç§»åŠ¨åœºæ™¯,è·å–IPåœ°å€
+		AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//å¯ç”¨ç½‘ç»œæ³¨å†ŒçŠ¶æ€ä¸ŠæŠ¥
 		
 	__exit:		
 		if (!result)

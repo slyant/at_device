@@ -56,7 +56,7 @@ static int air800_net_init(void);
 #define PWD_PIN		(27)
 #define RST_PIN		(26)
 
-//¼ÇÂ¼´íÎó£¬²¢Ìø×ªµ½:__exit
+//è®°å½•é”™è¯¯ï¼Œå¹¶è·³è½¬åˆ°:__exit
 #define AT_SEND_CMD(resp, resp_line, timeout, cmd)                                                              \
     do                                                                                                          \
     {                                                                                                           \
@@ -67,7 +67,7 @@ static int air800_net_init(void);
         }                                                                                                       \
     } while(0);                                                                                                 \
 
-//ºöÂÔ´íÎó£¬²¢Ìø×ªµ½gotag
+//å¿½ç•¥é”™è¯¯ï¼Œå¹¶è·³è½¬åˆ°gotag
 #define AT_SEND_CMD_GOTO_TAG(resp, resp_line, timeout, cmd, gotag)                                                     \
     do                                                                                                          \
     {                                                                                                           \
@@ -77,7 +77,7 @@ static int air800_net_init(void);
             goto gotag;																							\
         }                                                                                                       \
     } while(0); 
-//ºöÂÔ´íÎó£¬²¢¼ÌĞø
+//å¿½ç•¥é”™è¯¯ï¼Œå¹¶ç»§ç»­
 #define AT_SEND_CMD_CONTINUE(resp, resp_line, timeout, cmd)                                                     \
     do                                                                                                          \
     {                                                                                                           \
@@ -87,14 +87,14 @@ static int air800_net_init(void);
         }                                                                                                       \
     } while(0); 
 
-//³õÊ¼»¯ÎªÉÏµç¿ª»ú×´Ì¬
+//åˆå§‹åŒ–ä¸ºä¸Šç”µå¼€æœºçŠ¶æ€
 #define MODULE_PIN_INIT() do{\
 	rt_pin_mode(PWD_PIN,PIN_MODE_OUTPUT);\
 	rt_pin_mode(RST_PIN,PIN_MODE_OUTPUT);\
 	rt_pin_write(RST_PIN,0);\
 	rt_pin_write(PWD_PIN,1);\
 	}while(0);\
-//¿ª/¹Ø»ú
+//å¼€/å…³æœº
 #define MODULE_POWER() do{\
 	rt_pin_write(PWD_PIN,0);\
 	rt_thread_mdelay(500);\
@@ -102,7 +102,7 @@ static int air800_net_init(void);
 	rt_thread_mdelay(2000);\
 	rt_pin_write(PWD_PIN,0);\
 	}while(0);\
-//ÉèÖÃÎªÉÏµç¿ª»ú×´Ì¬Ê±ÎªÖØÆô¹¦ÄÜ
+//è®¾ç½®ä¸ºä¸Šç”µå¼€æœºçŠ¶æ€æ—¶ä¸ºé‡å¯åŠŸèƒ½
 #define MODULE_RESET() do{\
 	rt_pin_write(PWD_PIN,1);\
 	rt_pin_write(RST_PIN,1);\
@@ -626,7 +626,7 @@ static void urc_stat_func(const char *data, rt_size_t size)
 	{
 		if(sta!=1 && sta!=5)
 		{
-			air800_net_init();//ÍÑÍøÊ±ÖØĞÂ³õÊ¼»¯ÍøÂç
+			air800_net_init();//è„±ç½‘æ—¶é‡æ–°åˆå§‹åŒ–ç½‘ç»œ
 		}
 	}
 }
@@ -966,8 +966,8 @@ static void air800_init_thread_entry(void *parameter)
 		AT_SEND_CMD_CONTINUE(resp, 0, 500, "ATE0");
 		AT_SEND_CMD(resp, 0, 500, "ATE0");	
 		rt_thread_mdelay(500);
-		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//´ò¿ªGPS
-		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//ÉèÖÃGPSÊä³ö¸ñÊ½
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSPWR=1");		//æ‰“å¼€GPS
+		AT_SEND_CMD(resp, 0, 1000, "AT+CGNSSEQ=\"RMC\"");			//è®¾ç½®GPSè¾“å‡ºæ ¼å¼
 
 		/* get module version */
 		AT_SEND_CMD(resp, 0, 300, "ATI");
@@ -1067,12 +1067,12 @@ static void air800_init_thread_entry(void *parameter)
 			result = -RT_ERROR;
 			goto __exit;
 		}
-		AT_SEND_CMD_CONTINUE(resp, 1, 2000, "AT+CIPSHUT");			//¹Ø±ÕÒÆ¶¯³¡¾°
-		AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=1");					//ÉèÖÃÎª¶àÁ´½ÓÄ£Ê½
-		AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=1");					//ÉèÖÃÎª¿ì·¢Ä£Ê½
-		AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//Æô¶¯ÈÎÎñ,ÉèÖÃAPNÎª"CMNET"
-		AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//¼¤»îÒÆ¶¯³¡¾°,»ñÈ¡IPµØÖ·
-		AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//ÆôÓÃÍøÂç×¢²á×´Ì¬ÉÏ±¨
+		AT_SEND_CMD_CONTINUE(resp, 1, 2000, "AT+CIPSHUT");			//å…³é—­ç§»åŠ¨åœºæ™¯
+		AT_SEND_CMD(resp, 0, 300, "AT+CIPMUX=1");					//è®¾ç½®ä¸ºå¤šé“¾æ¥æ¨¡å¼
+		AT_SEND_CMD(resp, 0, 300, "AT+CIPQSEND=1");					//è®¾ç½®ä¸ºå¿«å‘æ¨¡å¼
+		AT_SEND_CMD(resp, 0, 300, "AT+CSTT=\"CMNET\"");				//å¯åŠ¨ä»»åŠ¡,è®¾ç½®APNä¸º"CMNET"
+		AT_SEND_CMD_GOTO_TAG(resp, 0, 5000, "AT+CIICR",__cipshut);	//æ¿€æ´»ç§»åŠ¨åœºæ™¯,è·å–IPåœ°å€
+		AT_SEND_CMD(resp, 0, 300, "AT+CGREG=1");					//å¯ç”¨ç½‘ç»œæ³¨å†ŒçŠ¶æ€ä¸ŠæŠ¥
 		
 	__exit:		
 		if (!result)
@@ -1115,19 +1115,19 @@ static void at_device_cmd_extention_handle(void* in_args, void* out_result)
 	air800_cmd_t air800_cmd = (air800_cmd_t)cmd_ex_args->cmd_ex_type;
 	switch(air800_cmd)
 	{
-		case AIR800_CMD_TTS_SET://ÉèÖÃTTS²¥·ÅÄ£Ê½
+		case AIR800_CMD_TTS_SET://è®¾ç½®TTSæ’­æ”¾æ¨¡å¼
 			{
 				air800_args_tts_set_t air800_args = (air800_args_tts_set_t)cmd_ex_args->cmd_ex_args;
 				tts_set(air800_args);
 			}
 			break;
-		case AIR800_CMD_TTS_PLAY://TTS²¥·Å
+		case AIR800_CMD_TTS_PLAY://TTSæ’­æ”¾
 			{				
 				air800_args_tts_play_t air800_args = (air800_args_tts_play_t)cmd_ex_args->cmd_ex_args;
 				tts_play(air800_args);
 			}
 			break;
-		case AIR800_CMD_TTS_STOP://TTSÍ£Ö¹²¥·Å
+		case AIR800_CMD_TTS_STOP://TTSåœæ­¢æ’­æ”¾
 			{				
 				tts_stop();
 			}

@@ -120,11 +120,11 @@ static void getip_thread_entry(void* parameter)
 			if(at_device_control(AT_DEVICE_CMD_IP, RT_NULL, RT_NULL)!=RT_EOK)
 			{
 				
-				sprintf(text, "获取IP失败:%d", get_count++);
+				sprintf(text, "鑾峰彇IP澶辫触:%d", get_count++);
 			}
 			else
 			{
-				sprintf(text, "获取IP成功:%d", get_count++);
+				sprintf(text, "鑾峰彇IP鎴愬姛:%d", get_count++);
 			}
 			rt_kprintf("%s\r\n", text);
 			rt_free(text);
